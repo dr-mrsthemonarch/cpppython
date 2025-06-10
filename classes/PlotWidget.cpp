@@ -15,7 +15,7 @@ void PlotWidget::generateSineData() {
     x_data.clear();
     y_data.clear();
 
-    const int numPoints = 100;
+    const int numPoints = 10;
     std::uniform_real_distribution<double> noise(-0.1, 0.1);
 
     for (int i = 0; i < numPoints; i++) {
