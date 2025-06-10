@@ -7,6 +7,7 @@
 #include <QtWidgets/QSplitter>
 #include "../classes/PlotWidget.h"
 #include "PythonEngine.h"
+#include "PythonHighlighter.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -21,15 +22,26 @@ private:
     QLabel* statusLabel;
     QSplitter* mainSplitter;
     QSplitter* rightSplitter;
-
+    QTextEdit* scriptEditor;
+    QPushButton* saveScriptButton;
     PythonEngine pythonEngine;
     std::string pythonScript;
+    PythonHighlighter* pythonHighlighter;
+    void createMenus();
+    void createActions();
+
+    // Menu actions
+    QAction* loadScriptAct;
+    QAction* exitAct;
+    QAction* aboutAct;
+
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
 
 private Q_SLOTS:
     void onLoadScript();
+    void onSaveScript();
     void onRunAnalysis();
     void onRegenerateData();
     void onClearOutput();

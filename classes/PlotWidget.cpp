@@ -12,9 +12,21 @@ PlotWidget::PlotWidget(QWidget* parent)
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
 
+    // Set chart background and style
+    chart->setBackgroundBrush(QColor(45, 45, 45));  // Dark gray background
+    chart->setBackgroundVisible(true);
+
+    // Make the plot area slightly lighter than the background
+    chart->setPlotAreaBackgroundBrush(QColor(60, 60, 60));
+    chart->setPlotAreaBackgroundVisible(true);
+
+    // Set text colors to white for better visibility
+    chart->setTitleBrush(QColor(255, 255, 255));
+
+
     // Create series for data points and fit line
     dataSeries = new QScatterSeries();
-    dataSeries->setMarkerSize(10);
+    dataSeries->setMarkerSize(5);
     dataSeries->setColor(QColor(0, 0, 255));
 
     fitSeries = new QSplineSeries();
@@ -49,10 +61,10 @@ void PlotWidget::generateSineData() {
     fitSeries->clear();
 
     const int numPoints = 100;
-    std::uniform_real_distribution<double> noise(-0.1, 0.1);
+    std::uniform_real_distribution<double> noise(-0.5, 0.1);
 
     for (int i = 0; i < numPoints; i++) {
-        double x = 2.0 * M_PI * i / (numPoints - 1);
+        double x = (2.0 * M_PI * i / (numPoints - 1) )+noise(rng);
         double y = sin(x) + noise(rng);
         x_data.push_back(x);
         y_data.push_back(y);
