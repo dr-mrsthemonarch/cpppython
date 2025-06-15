@@ -38,35 +38,89 @@ void PlotWidgetImpl::setupUI() {
     buttonLayout->addWidget(zoomInButton);
     buttonLayout->addWidget(zoomOutButton);
     buttonLayout->addWidget(resetZoomButton);
-    buttonLayout->addStretch();  // Push buttons to the left
+    buttonLayout->addStretch();
 
     // Create the main layout
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(buttonLayout);
+    mainLayout->setContentsMargins(5, 5, 5, 5);  // Add margins
+    mainLayout->setSpacing(5);  // Add spacing
 
     // Create QCustomPlot widget
     customPlot = new QCustomPlot(this);
-    mainLayout->addWidget(customPlot);
 
+    // Set size policies and constraints
+    customPlot->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    customPlot->setMinimumSize(300, 200);  // Set reasonable minimum size
+
+    mainLayout->addWidget(customPlot);
     setLayout(mainLayout);
 }
 
+void PlotWidgetImpl::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    if (customPlot) {
+        // Force a replot after resize to fix OpenGL viewport issues
+        QTimer::singleShot(10, [this]() {
+            customPlot->replot();
+        });
+    }
+}
+
+
+
 void PlotWidgetImpl::setupPlot() {
-    // Set dark theme
+
+    // Set proper widget attributes before enabling OpenGL
+    customPlot->setAttribute(Qt::WA_OpaquePaintEvent, true);
+    customPlot->setAttribute(Qt::WA_NoSystemBackground, true);
+    customPlot->setAttribute(Qt::WA_NativeWindow, true);
+
+    customPlot->setOpenGl(true);
+    // Enable high-quality antialiasing
+    customPlot->setAntialiasedElements(QCP::aeAll);
+    customPlot->setPlottingHints(QCP::phFastPolylines);
+    customPlot->setPlottingHints(QCP::phCacheLabels);
+    customPlot->setPlottingHints(QCP::phImmediateRefresh);
+
+    // Set background colors
     customPlot->setBackground(QColor(45, 45, 45));
     customPlot->axisRect()->setBackground(QColor(60, 60, 60));
 
-    // Configure axes
+    // Configure all four axes for full frame
     customPlot->xAxis->setBasePen(QPen(QColor(255, 255, 255)));
     customPlot->yAxis->setBasePen(QPen(QColor(255, 255, 255)));
+    customPlot->xAxis2->setBasePen(QPen(QColor(255, 255, 255)));  // Top axis
+    customPlot->yAxis2->setBasePen(QPen(QColor(255, 255, 255)));  // Right axis
+
     customPlot->xAxis->setTickPen(QPen(QColor(255, 255, 255)));
     customPlot->yAxis->setTickPen(QPen(QColor(255, 255, 255)));
+    customPlot->xAxis2->setTickPen(QPen(QColor(255, 255, 255)));
+    customPlot->yAxis2->setTickPen(QPen(QColor(255, 255, 255)));
+
     customPlot->xAxis->setSubTickPen(QPen(QColor(255, 255, 255)));
     customPlot->yAxis->setSubTickPen(QPen(QColor(255, 255, 255)));
+    customPlot->xAxis2->setSubTickPen(QPen(QColor(255, 255, 255)));
+    customPlot->yAxis2->setSubTickPen(QPen(QColor(255, 255, 255)));
+
     customPlot->xAxis->setTickLabelColor(QColor(255, 255, 255));
     customPlot->yAxis->setTickLabelColor(QColor(255, 255, 255));
     customPlot->xAxis->setLabelColor(QColor(255, 255, 255));
     customPlot->yAxis->setLabelColor(QColor(255, 255, 255));
+
+    // Make top and right axes visible
+    customPlot->xAxis2->setVisible(true);
+    customPlot->yAxis2->setVisible(true);
+
+    // Hide tick labels on top and right axes (optional, for cleaner look)
+    customPlot->xAxis2->setTickLabels(false);
+    customPlot->yAxis2->setTickLabels(false);
+
+    // Synchronize the ranges of opposite axes
+    QObject::connect(customPlot->xAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged),
+                     customPlot->xAxis2, QOverload<const QCPRange &>::of(&QCPAxis::setRange));
+    QObject::connect(customPlot->yAxis, QOverload<const QCPRange &>::of(&QCPAxis::rangeChanged),
+                     customPlot->yAxis2, QOverload<const QCPRange &>::of(&QCPAxis::setRange));
 
     // Set axis labels
     customPlot->xAxis->setLabel("X");
@@ -78,33 +132,32 @@ void PlotWidgetImpl::setupPlot() {
     customPlot->xAxis->grid()->setPen(QPen(QColor(80, 80, 80)));
     customPlot->yAxis->grid()->setPen(QPen(QColor(80, 80, 80)));
 
+    resizeEvent(nullptr);
+
     // Create graphs
     dataGraph = customPlot->addGraph();
     dataGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, QColor(0, 0, 255), QColor(0, 0, 255), 5));
-    dataGraph->setLineStyle(QCPGraph::lsNone);  // Only show scatter points
+    dataGraph->setLineStyle(QCPGraph::lsNone);
 
-    // Keep original fitGraph for backward compatibility
     fitGraph = customPlot->addGraph();
-    fitGraph->setPen(QPen(QColor(255, 0, 0), 2));  // Red line, 2px width
+    fitGraph->setPen(QPen(QColor(255, 0, 0), 2));
 
-    // Add new graphs for C++ and Python fits with custom dash patterns
+    // Add C++ and Python fit graphs
     cppFitGraph = customPlot->addGraph();
-    QPen cppPen(QColor(0, 255, 0), 3);  // Green line, 3px width
-    // Create custom dash pattern: dash(10), space(5), dot(2), space(5)
+    QPen cppPen(QColor(0, 255, 0), 3);
     QVector<qreal> cppDashPattern;
     cppDashPattern << 10 << 5 << 2 << 5;
     cppPen.setDashPattern(cppDashPattern);
-    cppPen.setDashOffset(0);  // No offset for C++
+    cppPen.setDashOffset(0);
     cppFitGraph->setPen(cppPen);
     cppFitGraph->setName("C++ Fit");
 
     pythonFitGraph = customPlot->addGraph();
-    QPen pythonPen(QColor(255, 0, 0), 3);  // Red line, 3px width
-    // Create custom dash pattern: dash(8), space(4), dot(2), space(4)
+    QPen pythonPen(QColor(255, 0, 0), 3);
     QVector<qreal> pythonDashPattern;
     pythonDashPattern << 8 << 4 << 2 << 4;
     pythonPen.setDashPattern(pythonDashPattern);
-    pythonPen.setDashOffset(7);  // Offset by 7 pixels to phase-shift the pattern
+    pythonPen.setDashOffset(7);
     pythonFitGraph->setPen(pythonPen);
     pythonFitGraph->setName("Python Fit");
 
@@ -113,7 +166,7 @@ void PlotWidgetImpl::setupPlot() {
     customPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
     customPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
 
-    // Connect mouse events using Qt5 syntax
+    // Connect mouse events
     QObject::connect(customPlot, &QCustomPlot::mousePress, this, &PlotWidgetImpl::onMousePress);
     QObject::connect(customPlot, &QCustomPlot::mouseWheel, this, &PlotWidgetImpl::onMouseWheel);
 }

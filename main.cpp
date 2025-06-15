@@ -4,6 +4,10 @@
 
 int main(int argc, char* argv[]) {
     try {
+        // Enable High DPI support before creating QApplication
+        QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+        QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+
         DataAnalysisApp app(argc, argv);
         MainWindow window;
         window.show();

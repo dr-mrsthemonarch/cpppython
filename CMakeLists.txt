@@ -22,6 +22,8 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
+# Add OpenGL support
+find_package(OpenGL REQUIRED)
 
 # Find required packages
 find_package(Qt5 COMPONENTS
@@ -29,6 +31,7 @@ find_package(Qt5 COMPONENTS
         Widgets
         Charts
         PrintSupport
+        OpenGL
         REQUIRED
 )
 
@@ -47,8 +50,17 @@ set(QCUSTOMPLOT_SOURCES
 )
 
 add_library(qcustomplot STATIC ${QCUSTOMPLOT_SOURCES})
-target_link_libraries(qcustomplot Qt5::Core Qt5::Widgets Qt5::PrintSupport)
-target_compile_definitions(qcustomplot PUBLIC QCUSTOMPLOT_USE_LIBRARY)
+target_link_libraries(qcustomplot
+        Qt5::Core
+        Qt5::Widgets
+        Qt5::PrintSupport
+        Qt5::OpenGL
+        ${OPENGL_LIBRARIES}
+)
+target_compile_definitions(qcustomplot PUBLIC
+        QCUSTOMPLOT_USE_LIBRARY
+        QCUSTOMPLOT_USE_OPENGL
+)
 
 # 2. Qt Implementation Layer (Qt-specific functionality with MOC)
 set(QT_IMPL_SOURCES
@@ -62,10 +74,13 @@ target_link_libraries(qt_impl
         Qt5::Widgets
         Qt5::Charts
         Qt5::PrintSupport
+        Qt5::OpenGL
         qcustomplot
 )
 # Add QT_NO_KEYWORDS to fix signals conflict
-target_compile_definitions(qt_impl PRIVATE QT_NO_KEYWORDS)
+target_compile_definitions(qt_impl PRIVATE
+        QT_NO_KEYWORDS
+)
 
 # 3. Wrapper Layer (Qt-free interface, NO Qt headers, NO MOC)
 set(WRAPPER_SOURCES
@@ -114,9 +129,11 @@ target_link_libraries(cpppython
         Qt5::Widgets
         Qt5::Charts
         Qt5::PrintSupport
+        Qt5::OpenGL
         plot_wrapper  # Use the wrapper instead of direct Qt libs
         pybind11::embed
         Python3::Python
+        ${OPENGL_LIBRARIES}
 )
 
 # Fix Python/Qt slot conflict

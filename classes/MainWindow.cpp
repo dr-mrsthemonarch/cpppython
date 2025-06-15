@@ -9,7 +9,7 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("Data Analysis Tool - Sine Curve Fitting with C++ and Python Comparison");
-    setMinimumSize(1000, 700);
+    setMinimumSize(1300, 600);
 
     createActions();  // Add this line
     createMenus();    // Add this line
@@ -42,7 +42,7 @@ void MainWindow::setupUI() {
     mainSplitter = new QSplitter(Qt::Horizontal, this);
 
     plotWidget = new PlotWidgetImpl(this);
-    plotWidget->setMinimumSize(400, 300);
+    plotWidget->setMinimumSize(100, 100);
 
     rightSplitter = new QSplitter(Qt::Vertical, this);
     QTabWidget* tabWidget = new QTabWidget(this);

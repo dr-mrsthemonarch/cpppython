@@ -24,6 +24,9 @@ public:
 protected:
     void mousePressEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+
+
 
 private Q_SLOTS:
     void onMousePress(QMouseEvent* event);
