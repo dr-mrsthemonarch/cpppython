@@ -1,3 +1,4 @@
+
 #include "../classes/PythonEngine.h"
 #include <stdexcept>
 #include <iostream>
@@ -63,68 +64,168 @@ sys.stderr = _qt_output_capture
 print("Python output capture initialized successfully")
 )");
 
-        // Add common Python paths and initialize required modules
+        // Cross-platform Python path discovery and module initialization
         pybind11::exec(R"(
 import sys
 import os
+import site
+import platform
+from pathlib import Path
 
-# Common Python installation paths
-possible_paths = [
-    '/opt/local/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages',
-    '/opt/local/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages',
-    '/usr/local/lib/python3.11/site-packages',
-    '/usr/local/lib/python3.12/site-packages',
-    '/Users/morbo/Library/Python/3.11/lib/python/site-packages',
-    '/Users/morbo/Library/Python/3.12/lib/python/site-packages',
-]
+def discover_python_paths():
+    """Discover Python paths in a cross-platform way"""
+    paths_to_add = []
 
-# Add existing paths and check for new ones
-paths_added = 0
-for path in possible_paths:
-    if os.path.exists(path) and path not in sys.path:
-        sys.path.insert(0, path)
-        print(f"✓ Added to Python path: {path}")
-        paths_added += 1
+    # Get system information
+    system = platform.system().lower()
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-if paths_added == 0:
-    print("ℹ No additional Python paths needed to be added")
+    print(f"System: {system}")
+    print(f"Python version: {python_version}")
+    print(f"Python executable: {sys.executable}")
 
-# Try to import essential modules
-modules_status = []
+    # Use site module to get user site packages (cross-platform)
+    try:
+        user_site = site.getusersitepackages()
+        if user_site and os.path.exists(user_site):
+            paths_to_add.append(user_site)
+            print(f"✓ Found user site packages: {user_site}")
+    except Exception as e:
+        print(f"⚠ Could not get user site packages: {e}")
 
-try:
-    import numpy as np
-    modules_status.append("✓ NumPy imported successfully")
-    numpy_version = np.__version__
-    modules_status.append(f"  NumPy version: {numpy_version}")
-except ImportError as e:
-    modules_status.append(f"✗ NumPy import failed: {e}")
-    modules_status.append("  Please install NumPy: pip install numpy")
+    # Get site packages from site module (system-wide)
+    try:
+        site_packages = site.getsitepackages()
+        for path in site_packages:
+            if os.path.exists(path):
+                paths_to_add.append(path)
+                print(f"✓ Found site packages: {path}")
+    except Exception as e:
+        print(f"⚠ Could not get site packages: {e}")
 
-try:
-    import scipy
-    from scipy.optimize import curve_fit
-    modules_status.append("✓ SciPy imported successfully")
-except ImportError as e:
-    modules_status.append(f"⚠ SciPy not available: {e}")
-    modules_status.append("  SciPy is optional but recommended for advanced fitting")
+    # Platform-specific additional paths
+    if system == "windows":
+        # Windows-specific paths
+        possible_paths = [
+            f"C:\\Python{python_version.replace('.', '')}\\Lib\\site-packages",
+            f"C:\\Users\\{os.environ.get('USERNAME', 'user')}\\AppData\\Local\\Programs\\Python\\Python{python_version.replace('.', '')}\\Lib\\site-packages",
+            f"C:\\Users\\{os.environ.get('USERNAME', 'user')}\\AppData\\Roaming\\Python\\Python{python_version.replace('.', '')}\\site-packages",
+        ]
+    elif system == "darwin":  # macOS
+        home_dir = os.path.expanduser("~")
+        possible_paths = [
+            f"/opt/local/Library/Frameworks/Python.framework/Versions/{python_version}/lib/python{python_version}/site-packages",
+            f"/usr/local/lib/python{python_version}/site-packages",
+            f"{home_dir}/Library/Python/{python_version}/lib/python/site-packages",
+            f"/System/Library/Frameworks/Python.framework/Versions/{python_version}/lib/python{python_version}/site-packages",
+            # Homebrew paths
+            f"/opt/homebrew/lib/python{python_version}/site-packages",
+            f"/usr/local/Cellar/python@{python_version}/*/lib/python{python_version}/site-packages",
+        ]
+    else:  # Linux and other Unix-like systems
+        home_dir = os.path.expanduser("~")
+        possible_paths = [
+            f"/usr/lib/python{python_version}/site-packages",
+            f"/usr/local/lib/python{python_version}/site-packages",
+            f"/usr/lib/python{python_version}/dist-packages",  # Ubuntu/Debian
+            f"{home_dir}/.local/lib/python{python_version}/site-packages",
+            f"/opt/python{python_version}/lib/python{python_version}/site-packages",
+        ]
 
-try:
-    import matplotlib
-    modules_status.append("✓ Matplotlib available")
-except ImportError:
-    modules_status.append("ℹ Matplotlib not available (optional")
+    # Check additional paths
+    for path in possible_paths:
+        # Handle glob patterns for paths like Homebrew
+        if '*' in path:
+            from glob import glob
+            matching_paths = glob(path)
+            for matching_path in matching_paths:
+                if os.path.exists(matching_path):
+                    paths_to_add.append(matching_path)
+                    print(f"✓ Found additional path: {matching_path}")
+        else:
+            if os.path.exists(path):
+                paths_to_add.append(path)
+                print(f"✓ Found additional path: {path}")
 
-import math
-modules_status.append("✓ Math module imported")
+    return paths_to_add
 
-# Print all status messages
-for status in modules_status:
+def add_python_paths():
+    """Add discovered Python paths to sys.path"""
+    discovered_paths = discover_python_paths()
+    paths_added = 0
+
+    for path in discovered_paths:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+            paths_added += 1
+
+    if paths_added == 0:
+        print("ℹ No additional Python paths needed to be added")
+    else:
+        print(f"✓ Added {paths_added} paths to Python path")
+
+    return paths_added
+
+def check_essential_modules():
+    """Check for essential modules in a cross-platform way"""
+    modules_status = []
+
+    # NumPy
+    try:
+        import numpy as np
+        modules_status.append("✓ NumPy imported successfully")
+        modules_status.append(f"  NumPy version: {np.__version__}")
+    except ImportError as e:
+        modules_status.append(f"✗ NumPy import failed: {e}")
+        modules_status.append("  Please install NumPy: pip install numpy")
+
+    # SciPy
+    try:
+        import scipy
+        from scipy.optimize import curve_fit
+        modules_status.append("✓ SciPy imported successfully")
+        modules_status.append(f"  SciPy version: {scipy.__version__}")
+    except ImportError as e:
+        modules_status.append(f"⚠ SciPy not available: {e}")
+        modules_status.append("  SciPy is optional but recommended for advanced fitting")
+
+    # Matplotlib
+    try:
+        import matplotlib
+        modules_status.append("✓ Matplotlib available")
+        modules_status.append(f"  Matplotlib version: {matplotlib.__version__}")
+    except ImportError:
+        modules_status.append("ℹ Matplotlib not available")
+
+    # Math (built-in)
+    import math
+    modules_status.append("✓ Math module imported")
+
+    return modules_status
+
+# Execute the path discovery and module checking
+print("=" * 60)
+print("Python Engine Cross-Platform Initialization")
+print("=" * 60)
+
+add_python_paths()
+
+print("\nChecking essential modules:")
+print("-" * 30)
+module_statuses = check_essential_modules()
+for status in module_statuses:
     print(status)
 
-print("=" * 50)
+print("\nPython path information:")
+print("-" * 25)
+print(f"Total paths in sys.path: {len(sys.path)}")
+print("First 5 paths:")
+for i, path in enumerate(sys.path[:5]):
+    print(f"  {i+1}. {path}")
+
+print("=" * 60)
 print("Python engine initialization complete")
-print("=" * 50)
+print("=" * 60)
 )");
 
         // Capture and display the initialization output

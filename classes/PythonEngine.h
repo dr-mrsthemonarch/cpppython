@@ -3,8 +3,6 @@
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <QtWidgets/QTextEdit>
-#include <QtCore/QCoreApplication>
-#include <QtGui/QTextCursor>
 #include <memory>
 #include <vector>
 #include <string>

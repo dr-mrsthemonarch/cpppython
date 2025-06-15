@@ -4,7 +4,6 @@
 #include <QTextEdit>
 #include <QTextCursor>
 #include <QApplication>
-#include <QEventLoop>
 #include <streambuf>
 #include <string>
 

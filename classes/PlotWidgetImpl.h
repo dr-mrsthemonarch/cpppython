@@ -1,10 +1,5 @@
 // PlotWidgetImpl.h - Internal implementation with Qt headers
 #pragma once
-#include <QtWidgets/QWidget>
-#include <QtWidgets/QVBoxLayout>
-#include <QtWidgets/QHBoxLayout>
-#include <QtWidgets/QToolButton>
-#include <QMouseEvent>
 #include <random>
 #include <vector>
 #include "qcustomplot_wrapper.h"
@@ -21,6 +16,10 @@ public:
     void zoomIn();
     void zoomOut();
     void resetZoom();
+    void setCppFitData(const std::vector<double>& fit_x, const std::vector<double>& fit_y);
+    void setPythonFitData(const std::vector<double>& fit_x, const std::vector<double>& fit_y);
+    void clearFitData();
+
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -34,6 +33,8 @@ private:
     QCustomPlot* customPlot;
     QCPGraph* dataGraph;      // For scatter data points
     QCPGraph* fitGraph;       // For fit curve
+    QCPGraph* cppFitGraph;
+    QCPGraph* pythonFitGraph;
     std::vector<double> x_data;
     std::vector<double> y_data;
     std::mt19937 rng;

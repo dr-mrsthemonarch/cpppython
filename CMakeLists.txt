@@ -105,6 +105,8 @@ add_executable(cpppython
         classes/DataAnalysisApp.h
         classes/PythonHighlighter.cpp
         classes/PythonHighlighter.h
+        classes/CppSineFitter.cpp
+        classes/CppSineFitter.h
 )
 
 target_link_libraries(cpppython

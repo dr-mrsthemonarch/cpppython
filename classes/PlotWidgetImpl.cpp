@@ -12,9 +12,9 @@ PlotWidgetImpl::PlotWidgetImpl(QWidget* parent)
 
     // Set initial ranges
     initialXMin = 0;
-    initialXMax = 2 * M_PI;
-    initialYMin = -1.5;
-    initialYMax = 1.5;
+    initialXMax = 2.5 * M_PI;
+    initialYMin = -2;
+    initialYMax = 2;
 
     generateSineData();
 }
@@ -83,8 +83,30 @@ void PlotWidgetImpl::setupPlot() {
     dataGraph->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, QColor(0, 0, 255), QColor(0, 0, 255), 5));
     dataGraph->setLineStyle(QCPGraph::lsNone);  // Only show scatter points
 
+    // Keep original fitGraph for backward compatibility
     fitGraph = customPlot->addGraph();
     fitGraph->setPen(QPen(QColor(255, 0, 0), 2));  // Red line, 2px width
+
+    // Add new graphs for C++ and Python fits with custom dash patterns
+    cppFitGraph = customPlot->addGraph();
+    QPen cppPen(QColor(0, 255, 0), 3);  // Green line, 3px width
+    // Create custom dash pattern: dash(10), space(5), dot(2), space(5)
+    QVector<qreal> cppDashPattern;
+    cppDashPattern << 10 << 5 << 2 << 5;
+    cppPen.setDashPattern(cppDashPattern);
+    cppPen.setDashOffset(0);  // No offset for C++
+    cppFitGraph->setPen(cppPen);
+    cppFitGraph->setName("C++ Fit");
+
+    pythonFitGraph = customPlot->addGraph();
+    QPen pythonPen(QColor(255, 0, 0), 3);  // Red line, 3px width
+    // Create custom dash pattern: dash(8), space(4), dot(2), space(4)
+    QVector<qreal> pythonDashPattern;
+    pythonDashPattern << 8 << 4 << 2 << 4;
+    pythonPen.setDashPattern(pythonDashPattern);
+    pythonPen.setDashOffset(7);  // Offset by 7 pixels to phase-shift the pattern
+    pythonFitGraph->setPen(pythonPen);
+    pythonFitGraph->setName("Python Fit");
 
     // Enable interactions
     customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
@@ -96,6 +118,38 @@ void PlotWidgetImpl::setupPlot() {
     QObject::connect(customPlot, &QCustomPlot::mouseWheel, this, &PlotWidgetImpl::onMouseWheel);
 }
 
+void PlotWidgetImpl::setCppFitData(const std::vector<double>& fit_x, const std::vector<double>& fit_y) {
+    QVector<double> x_vec, y_vec;
+
+    for (size_t i = 0; i < fit_x.size(); ++i) {
+        x_vec.append(fit_x[i]);
+        y_vec.append(fit_y[i]);
+    }
+
+    cppFitGraph->setData(x_vec, y_vec);
+    customPlot->replot();
+}
+
+void PlotWidgetImpl::setPythonFitData(const std::vector<double>& fit_x, const std::vector<double>& fit_y) {
+    QVector<double> x_vec, y_vec;
+
+    for (size_t i = 0; i < fit_x.size(); ++i) {
+        x_vec.append(fit_x[i]);
+        y_vec.append(fit_y[i]);
+    }
+
+    pythonFitGraph->setData(x_vec, y_vec);
+    customPlot->replot();
+}
+
+void PlotWidgetImpl::clearFitData() {
+    cppFitGraph->data()->clear();
+    pythonFitGraph->data()->clear();
+    fitGraph->data()->clear();
+    customPlot->replot();
+}
+
+
 void PlotWidgetImpl::generateSineData() {
     x_data.clear();
     y_data.clear();
@@ -103,15 +157,69 @@ void PlotWidgetImpl::generateSineData() {
     QVector<double> x_vec, y_vec;
 
     const int numPoints = 100;
-    std::uniform_real_distribution<double> noise(-0.5, 0.1);
 
-    for (int i = 0; i < numPoints; i++) {
-        double x = (2.0 * M_PI * i / (numPoints - 1)) + noise(rng);
-        double y = sin(x) + noise(rng);
-        x_data.push_back(x);
-        y_data.push_back(y);
-        x_vec.append(x);
-        y_vec.append(y);
+    // More reasonable random distributions
+    std::uniform_real_distribution<double> amplitude_dist(0.8, 2.2);     // Moderate amplitude changes
+    std::uniform_real_distribution<double> frequency_dist(0.8, 2.5);     // Reasonable frequency variations
+    std::uniform_real_distribution<double> phase_dist(0.0, 2.0 * M_PI);  // Random phase shifts
+    std::uniform_real_distribution<double> noise_dist(-0.8, 0.8);        // Stronger but reasonable noise
+    std::uniform_real_distribution<double> offset_dist(-1.0, 1.0);       // Moderate DC offset
+
+    // Generate fewer segments with smoother transitions
+    const int segments = 3;  // Fewer segments for more coherent sine waves
+    const int pointsPerSegment = numPoints / segments;
+
+    // Initialize with base parameters
+    double prev_amplitude = amplitude_dist(rng);
+    double prev_frequency = frequency_dist(rng);
+    double prev_phase = phase_dist(rng);
+    double prev_offset = offset_dist(rng);
+
+    for (int seg = 0; seg < segments; ++seg) {
+        // Gradually change parameters for smoother transitions
+        double amplitude = prev_amplitude + std::uniform_real_distribution<double>(-0.5, 0.5)(rng);
+        double frequency = prev_frequency + std::uniform_real_distribution<double>(-0.3, 0.3)(rng);
+        double phase = prev_phase + std::uniform_real_distribution<double>(-M_PI/2, M_PI/2)(rng);
+        double offset = prev_offset + std::uniform_real_distribution<double>(-0.5, 0.5)(rng);
+
+        // Keep parameters within reasonable bounds
+        amplitude = std::max(0.5, std::min(3.0, amplitude));
+        frequency = std::max(0.5, std::min(3.0, frequency));
+        offset = std::max(-2.0, std::min(2.0, offset));
+
+        int startIdx = seg * pointsPerSegment;
+        int endIdx = (seg == segments - 1) ? numPoints : (seg + 1) * pointsPerSegment;
+
+        for (int i = startIdx; i < endIdx; ++i) {
+            // Smooth x progression with minimal randomness
+            double x_base = (2.0 * M_PI * i / (numPoints - 1));
+            double x_noise = noise_dist(rng) * 0.05;  // Very small x-axis noise
+            double x = x_base + x_noise;
+
+            // Main sine wave with current parameters
+            double y_base = amplitude * sin(frequency * x + phase) + offset;
+
+            // Add reasonable noise
+            double y_noise = noise_dist(rng) * 0.3;  // Moderate noise level
+
+            // Occasional small spikes (much less frequent and smaller)
+            if (std::uniform_real_distribution<double>(0.0, 1.0)(rng) < 0.05) {
+                y_noise += std::uniform_real_distribution<double>(-1.5, 1.5)(rng);
+            }
+
+            double y = y_base + y_noise;
+
+            x_data.push_back(x);
+            y_data.push_back(y);
+            x_vec.append(x);
+            y_vec.append(y);
+        }
+
+        // Update previous parameters for next segment
+        prev_amplitude = amplitude;
+        prev_frequency = frequency;
+        prev_phase = phase;
+        prev_offset = offset;
     }
 
     // Set data to the scatter graph
@@ -132,6 +240,7 @@ void PlotWidgetImpl::setFitData(const std::vector<double>& fit_x, const std::vec
     fitGraph->setData(x_vec, y_vec);
     customPlot->replot();
 }
+
 
 std::vector<double> PlotWidgetImpl::getXData() const {
     return x_data;
