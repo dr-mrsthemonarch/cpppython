@@ -5,7 +5,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QSplitter>
-#include "../classes/PlotWidget.h"
+#include "../classes/PlotWidgetWrapper.h"
 #include "PythonEngine.h"
 #include "PythonHighlighter.h"
 
@@ -13,7 +13,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 private:
-    PlotWidget* plotWidget;
+    PlotWidgetImpl* plotWidget;
     QTextEdit* outputTextEdit;
     QPushButton* loadScriptButton;
     QPushButton* runAnalysisButton;

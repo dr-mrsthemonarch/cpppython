@@ -12,6 +12,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "PlotWidgetImpl.h"
 
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -48,7 +49,7 @@ void MainWindow::setupUI() {
 
     mainSplitter = new QSplitter(Qt::Horizontal, this);
 
-    plotWidget = new PlotWidget(this);
+    plotWidget = new PlotWidgetImpl(this);
     plotWidget->setMinimumSize(400, 300);
 
     rightSplitter = new QSplitter(Qt::Vertical, this);
