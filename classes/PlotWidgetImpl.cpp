@@ -76,7 +76,7 @@ void PlotWidgetImpl::setupPlot() {
     customPlot->setAttribute(Qt::WA_NoSystemBackground, true);
     customPlot->setAttribute(Qt::WA_NativeWindow, true);
 
-    customPlot->setOpenGl(true);
+    customPlot->setOpenGl(true,4);
     // Enable high-quality antialiasing
     customPlot->setAntialiasedElements(QCP::aeAll);
     customPlot->setPlottingHints(QCP::phFastPolylines);
